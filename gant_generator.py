@@ -54,7 +54,7 @@ def parse_input_data(json_str):
 
             task['start_date'] = None; task['end_date'] = None
         return data
-    except json.JSONDecodeError as e: logging.error(f"Error JSON: {e}"); raise
+    except json.JSONDecodeError as e: logging.error(f"Error JSON en línea {e.lineno} col {e.colno}: {e.msg}"); raise
     except ValueError as e: logging.error(f"Error estructura JSON: {e}"); raise
     except Exception as e: logging.error(f"Error parseando datos: {e}"); raise
 
@@ -62,69 +62,74 @@ def calculate_end_date_variable_hours(start_date, duration_days, working_hours_c
     """Calcula la fecha de fin sumando N días laborables."""
     if not isinstance(start_date, datetime.date) or not isinstance(duration_days, (int, float)) or duration_days <= 0: return None
     days_to_add = int(duration_days); current_date = start_date; work_days_counted = 0
-    sim_days = 0 # Safety break
-    while work_days_counted < days_to_add and sim_days < duration_days * 5: # Limit simulation
+    sim_days = 0; max_sim = duration_days * 7
+    while work_days_counted < days_to_add and sim_days < max_sim:
         sim_days+=1
         day_name = current_date.strftime("%A")
         if working_hours_config.get(day_name, 0) > 0: work_days_counted += 1
         if work_days_counted == days_to_add: break
         current_date += datetime.timedelta(days=1)
-    if work_days_counted < days_to_add: # Check if loop finished due to safety break
-        logging.error(f"Could not calculate end date within reasonable simulation limit for start={start_date}, duration={duration_days}")
-        return None
+    if work_days_counted < days_to_add:
+        logging.error(f"Timeout calculando fecha fin: start={start_date}, duration={duration_days}")
+        return None # No se pudo calcular en un tiempo razonable
     return current_date
 
-# --- MODIFICADO: Añadido logging detallado ---
 def check_hourly_availability(task_id, task_name, task_start_date, task_duration, task_assignments, schedule_hours, max_available_hours_per_day, working_hours_config):
-    """Verifica si la suma de horas asignadas excede las horas disponibles del rol para cada día."""
+    """
+    Verifica estrictamente si la suma de horas asignadas excede las horas disponibles del rol.
+    """
     task_end_date = calculate_end_date_variable_hours(task_start_date, task_duration, working_hours_config)
     if task_end_date is None:
-        logging.warning(f"[Check T{task_id}] Invalid end date calculation.")
-        return False
+        logging.warning(f"[Check T{task_id}] Fecha fin inválida ({task_start_date}, {task_duration}).")
+        return False # No se puede verificar si no hay fecha fin
 
     current_date = task_start_date
-    logging.debug(f"[Check T{task_id} '{task_name}'] Checking availability from {task_start_date} to {task_end_date} (Duration: {task_duration}d)")
+    logging.debug(f"[Check T{task_id} '{task_name}'] Disponibilidad? {task_start_date} -> {task_end_date} ({task_duration}d)")
     while current_date <= task_end_date:
         day_name = current_date.strftime("%A")
         daily_working_hours = working_hours_config.get(day_name, 0)
 
         if daily_working_hours > 0: # Solo verificar días laborables
             current_daily_scheduled_hours = schedule_hours.get(current_date, defaultdict(float))
-            logging.debug(f"  [Check T{task_id} @ {current_date}] Current Schedule (Hours): {dict(current_daily_scheduled_hours)}")
+            logging.debug(f"  [Check T{task_id} @ {current_date}] Horas ya asignadas: {dict(current_daily_scheduled_hours)}")
 
+            # Verificar cada rol de la tarea que se intenta planificar
             for assignment in task_assignments:
                 role = assignment['role']
                 allocation_pct = assignment['allocation']
-                if allocation_pct <= 0: continue # Skip roles with 0 allocation
+                if allocation_pct <= 0: continue # No consume recursos
 
-                # Horas que *esta* tarea añade para este rol en este día
+                # Horas que la tarea añadiría para el rol en ese día
                 task_hourly_load_role_day = daily_working_hours * (allocation_pct / 100.0)
 
-                # Carga horaria *ya existente* para este rol en este día
+                # Horas que ESTE rol ya tiene asignadas de OTRAS tareas en ESTE día
                 current_role_hours_day = current_daily_scheduled_hours.get(role, 0.0)
 
-                # Horas máximas *disponibles* para este rol en este día
+                # Horas MÁXIMAS que ESTE rol puede trabajar en ESTE día
                 max_role_hours_day = max_available_hours_per_day.get(role, {}).get(day_name, 0.0)
 
-                # *** La comprobación clave ***
+                # *** Comprobación Estricta ***
                 new_total_hours = current_role_hours_day + task_hourly_load_role_day
-                logging.debug(f"    [Check T{task_id} @ {current_date} - {role}] CurrentH: {current_role_hours_day:.2f}, TaskH: {task_hourly_load_role_day:.2f}, NewTotalH: {new_total_hours:.2f}, MaxH: {max_role_hours_day:.2f}")
+                tolerance = 1e-9 # Pequeña tolerancia para floats
 
-                if new_total_hours > max_role_hours_day + 0.01: # Usar epsilon
-                    logging.info(f"  [Check T{task_id} @ {current_date} - {role}] CONFLICT! NewTotalH ({new_total_hours:.2f}) > MaxH ({max_role_hours_day:.2f})")
-                    return False # Conflicto -> No hay disponibilidad en este intervalo de fechas
-        # else: logging.debug(f"  [Check T{task_id} @ {current_date}] Skipping non-working day.")
+                logging.debug(f"    [Check T{task_id} @ {current_date} - {role}] Actual: {current_role_hours_day:.4f}h, Nueva Tarea: {task_hourly_load_role_day:.4f}h, Total Propuesto: {new_total_hours:.4f}h, Límite Rol: {max_role_hours_day:.4f}h")
+
+                if new_total_hours > max_role_hours_day + tolerance:
+                    logging.info(f"  [Check T{task_id} @ {current_date} - {role}] CONFLICT! Total Propuesto ({new_total_hours:.4f}) > Límite Rol ({max_role_hours_day:.4f})")
+                    return False # Conflicto -> No hay disponibilidad
+
         current_date += datetime.timedelta(days=1)
 
-    logging.debug(f"[Check T{task_id}] Availability OK from {task_start_date} to {task_end_date}")
+    logging.debug(f"[Check T{task_id}] Disponibilidad OK para {task_start_date} -> {task_end_date}")
     return True # No se encontraron conflictos
 
 def update_hourly_schedule(task_start_date, task_duration, task_assignments, schedule_hours, working_hours_config):
-    """Actualiza el tracker de carga sumando las horas específicas asignadas."""
+    """Actualiza el tracker `schedule_hours` sumando las horas específicas."""
     task_end_date = calculate_end_date_variable_hours(task_start_date, task_duration, working_hours_config)
     if task_end_date is None: return
 
     current_date = task_start_date
+    logging.debug(f"[Update Sch T?] Actualizando carga {task_start_date} -> {task_end_date}")
     while current_date <= task_end_date:
         day_name = current_date.strftime("%A")
         daily_working_hours = working_hours_config.get(day_name, 0)
@@ -134,23 +139,23 @@ def update_hourly_schedule(task_start_date, task_duration, task_assignments, sch
                 role = assignment['role']; allocation_pct = assignment['allocation']
                 task_hourly_load_role_day = daily_working_hours * (allocation_pct / 100.0)
                 schedule_hours[current_date][role] += task_hourly_load_role_day
+                logging.debug(f"  [Update Sch @ {current_date} - {role}] Añadido: {task_hourly_load_role_day:.2f}h -> Nueva Carga Total Día: {schedule_hours[current_date][role]:.2f}h")
         current_date += datetime.timedelta(days=1)
 
 def get_next_working_day(input_date, working_hours_config):
-    # (Sin cambios)
     next_day = input_date
     while True:
         day_name = next_day.strftime("%A");
         if working_hours_config.get(day_name, 0) > 0: return next_day
         next_day += datetime.timedelta(days=1)
 
-# --- Lógica Principal de Replanificación ---
+# --- Lógica Principal de Replanificación (Planifica 1 tarea por iteración) ---
 def replan_project(data):
-    """Replanifica el proyecto nivelando recursos basado en carga horaria diaria."""
+    """Replanifica proyecto nivelando recursos basado en carga horaria diaria, priorizando por ID."""
     tasks = data['tasks']; roles_config = data['roles']; working_hours_config = data['config']['working_hours']
     max_role_availability_pct = {role: info['availability_percent'] for role, info in roles_config.items()}
 
-    # Calcular horas máximas disponibles por rol y día de la semana
+    # Calcular horas máximas disponibles por rol y día
     max_available_hours_per_day = defaultdict(dict)
     for role, info in roles_config.items():
         for day, hours in working_hours_config.items():
@@ -162,21 +167,24 @@ def replan_project(data):
     scheduled_tasks = []; task_end_dates = {}; resource_schedule_hours = {} # Tracker de HORAS
     unscheduled_task_ids = [t['id'] for t in tasks]; task_map = {t['id']: t for t in tasks}
     project_start_date = datetime.date.today()
-    logging.info(f"Iniciando replanificación (Nivelación Horaria Estricta v2). Inicio: {project_start_date}"); logging.info(f"Disponibilidad Max (Horas): {max_available_hours_per_day}"); logging.info(f"Horas Laborables: {working_hours_config}")
+    logging.info(f"Iniciando replanificación (Nivelación Horaria Estricta v4). Inicio: {project_start_date}"); logging.info(f"Disponibilidad Max (Horas): {max_available_hours_per_day}"); logging.info(f"Horas Laborables: {working_hours_config}")
 
-    MAX_ITERATIONS = len(tasks) * 5; current_iteration = 0
+    MAX_ITERATIONS = len(tasks) * 10 # Aumentar límite por si la nivelación requiere muchos reintentos
+    current_iteration = 0
 
     # Bucle principal: Planifica UNA tarea por iteración
     while unscheduled_task_ids and current_iteration < MAX_ITERATIONS:
         current_iteration += 1; scheduled_in_iteration = False
         ready_to_schedule_ids = []
+        # Identificar TODAS las tareas listas en este punto
         for task_id in unscheduled_task_ids:
             task = task_map[task_id]; dependencies = task['dependencies']
-            if all(dep_id in task_end_dates for dep_id in dependencies): ready_to_schedule_ids.append(task_id)
+            if all(dep_id in task_end_dates for dep_id in dependencies):
+                ready_to_schedule_ids.append(task_id)
 
         if not ready_to_schedule_ids:
              if unscheduled_task_ids: logging.error(f"Ciclo o error en iter {current_iteration}. IDs pendientes: {unscheduled_task_ids}")
-             break
+             break # Salir si no hay nada que planificar
 
         # Priorizar tareas listas por ID (orden original)
         ready_to_schedule_ids.sort()
@@ -192,39 +200,38 @@ def replan_project(data):
         current_check_date = get_next_working_day(earliest_start_dep, working_hours_config)
 
         # Encontrar primer hueco basado en disponibilidad HORARIA
-        found_slot = False; attempts = 0; MAX_ATTEMPTS_SLOT = 365 * 3
+        found_slot = False; attempts = 0; MAX_ATTEMPTS_SLOT = 365 * 5 # Límite búsqueda 5 años
+        logging.debug(f"Iter {current_iteration}: Intentando planificar Tarea {task_id_to_schedule} ('{task['name']}')")
         while not found_slot and attempts < MAX_ATTEMPTS_SLOT:
             attempts += 1
-            # Pasar ID y nombre a check_availability para mejor logging
+            # Usar la función de chequeo horario
             if check_hourly_availability(task_id_to_schedule, task['name'], current_check_date, duration, assignments, resource_schedule_hours, max_available_hours_per_day, working_hours_config):
                 # Slot encontrado
                 task['start_date'] = current_check_date
                 task['end_date'] = calculate_end_date_variable_hours(current_check_date, duration, working_hours_config)
-                if task['end_date'] is None: logging.error(f"Error calculando fecha fin Tarea {task_id_to_schedule}"); task['end_date'] = current_check_date
+                if task['end_date'] is None: logging.error(f"Error calculando fecha fin Tarea {task_id_to_schedule}"); task['end_date'] = current_check_date # Fallback
+                # Actualizar el schedule CON LAS HORAS de esta tarea
                 update_hourly_schedule(task['start_date'], duration, assignments, resource_schedule_hours, working_hours_config)
-                task_end_dates[task_id_to_schedule] = task['end_date']
+                task_end_dates[task_id_to_schedule] = task['end_date'] # Guardar fin para dependencias
                 scheduled_tasks.append(task)
                 unscheduled_task_ids.remove(task_id_to_schedule) # Quitar de pendientes
                 logging.info(f"Iter {current_iteration}: PLANIFICADA Tarea {task_id_to_schedule} ({task['name']}) | Inicio: {task['start_date']} | Fin: {task['end_date']} | Duración: {duration}d")
                 found_slot = True; scheduled_in_iteration = True
             else:
                 # No disponible, probar siguiente día laborable
+                logging.debug(f"  Slot no encontrado en {current_check_date} para T{task_id_to_schedule}. Probando siguiente día.")
                 current_check_date = get_next_working_day(current_check_date + datetime.timedelta(days=1), working_hours_config)
         if not found_slot:
              logging.error(f"Iter {current_iteration}: NO SE ENCONTRÓ slot Tarea {task_id_to_schedule} ({task['name']}) tras {attempts} intentos. Se reintentará.")
-             # No la quitamos de unscheduled_task_ids, se reintentará en la siguiente iteración
+             # La tarea permanece en unscheduled_task_ids y se reintentará en la siguiente iteración
 
-        # Si no se planificó nada en esta iteración (porque la primera tarea lista no encontró hueco),
-        # el bucle principal continuará y volverá a intentarlo (o eventualmente alcanzará MAX_ITERATIONS)
-        if not scheduled_in_iteration and not unscheduled_task_ids: # Si no quedan tareas, salir
-             break
-        elif not scheduled_in_iteration and current_iteration >= MAX_ITERATIONS:
-             logging.warning(f"Se alcanzó el límite de iteraciones sin planificar la tarea {task_id_to_schedule}.")
+        if not scheduled_in_iteration and not unscheduled_task_ids: break # Si no quedan tareas, salir
+        elif not scheduled_in_iteration and current_iteration >= MAX_ITERATIONS: logging.warning(f"Se alcanzó el límite de iteraciones sin planificar la tarea {task_id_to_schedule}.")
 
 
     if unscheduled_task_ids: logging.warning(f"Replanificación finalizada con {len(unscheduled_task_ids)} tareas no planificadas: {unscheduled_task_ids}")
     else: logging.info("Replanificación completada.")
-    scheduled_tasks.sort(key=lambda t: t['start_date'])
+    scheduled_tasks.sort(key=lambda t: t['start_date']) # Ordenar salida final
     output_data = data.copy(); output_data['tasks'] = []; max_end_date = None; project_start_output = None
     for task in scheduled_tasks:
          task_copy = task.copy(); task_copy['start_date'] = task_copy['start_date'].isoformat() if task_copy['start_date'] else None
@@ -246,15 +253,15 @@ def replan_project(data):
               if working_hours_config.get(day_name_calc, 0) > 0: work_days_total += 1
               d += datetime.timedelta(days=1)
     # Actualizar nota final
-    output_data['schedule_notes'] = f"PLAN REPLANIFICADO (NIVELACIÓN HORARIA ESTRICTA v2) ({datetime.date.today()}): Respetando LT {max_role_availability_pct.get('Lider Tecnico', 0)}% / IA {max_role_availability_pct.get('Ingeniero IA', 0)}% MÁXIMO diario y horario laboral variable. Prioridad por ID. Duración total: {work_days_total} días laborables ({duration_days_calendar} días naturales)."
+    output_data['schedule_notes'] = f"PLAN REPLANIFICADO (NIVELACIÓN HORARIA ESTRICTA v4) ({datetime.date.today()}): Respetando LT {max_role_availability_pct.get('Lider Tecnico', 0)}% / IA {max_role_availability_pct.get('Ingeniero IA', 0)}% MÁXIMO diario y horario laboral variable. Prioridad por ID. Duración total: {work_days_total} días laborables ({duration_days_calendar} días naturales)."
     return output_data
 
 # --- Main Execution Block ---
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Replanifica proyecto JSON con nivelación horaria estricta.")
-    parser.add_argument("-i","--input_file", help="Ruta al archivo JSON de entrada.")
-    parser.add_argument("-o", "--output_file", default="replanned_project_hourly_strict.json",
-                        help="Ruta al archivo JSON de salida (default: replanned_project_hourly_strict.json).")
+    parser.add_argument("-i", "--input_file", help="Ruta al archivo JSON de entrada.")
+    parser.add_argument("-o", "--output_file", default="replanned_project_hourly_strict_v4.json",
+                        help="Ruta al archivo JSON de salida (default: replanned_project_hourly_strict_v4.json).")
     args = parser.parse_args()
     logging.info(f"Leyendo archivo de entrada: {args.input_file}")
     try:
@@ -263,7 +270,7 @@ if __name__ == "__main__":
         input_data = parse_input_data(input_json_str_from_file)
         replanned_data = replan_project(input_data)
         output_json_str = json.dumps(replanned_data, indent=2, ensure_ascii=False)
-        print("\n--- Plan Replanificado (Nivelación Horaria Estricta v2) ---")
+        print("\n--- Plan Replanificado (Nivelación Horaria Estricta v4) ---")
         print(output_json_str)
         print("-----------------------------------------------------------\n")
         output_file_path = args.output_file
