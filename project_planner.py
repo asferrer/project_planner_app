@@ -600,7 +600,7 @@ def get_working_segments_from_dates(task_start_date: datetime.date, task_end_dat
 
 def get_ai_project_template_data() -> tuple[dict, list, int]:
     """
-    Provides a sample AI project template with tasks and roles.
+    Provides an enhanced sample project template to showcase functionalities.
     All text is in English.
 
     Returns:
@@ -611,18 +611,82 @@ def get_ai_project_template_data() -> tuple[dict, list, int]:
     """
     project_start_date = st.session_state.config.get('project_start_date', datetime.date.today())
     roles_cfg = {
-        'Tech Lead': {"availability_percent": 50.0, "rate_eur_hr": 46.0},
-        'AI Engineer': {"availability_percent": 50.0, "rate_eur_hr": 27.0},
-        'Senior AI Engineer': {"availability_percent": 50.0, "rate_eur_hr": 37.0} # Renamed for clarity
+        'Project Manager': {"availability_percent": 75.0, "rate_eur_hr": 70.0},
+        'Lead Developer': {"availability_percent": 100.0, "rate_eur_hr": 60.0},
+        'Developer': {"availability_percent": 100.0, "rate_eur_hr": 45.0},
+        'QA Engineer': {"availability_percent": 100.0, "rate_eur_hr": 40.0},
+        'UX Designer': {"availability_percent": 80.0, "rate_eur_hr": 50.0}
     }
-    # Tasks structure with English names
+
     tasks_structure = [
-        {"id": 1, "phase": "Phase 0", "subtask": "Kick-off & Planning", "effort_ph": 20, "assignments": [{"role": "Tech Lead", "allocation": 50}, {"role": "Senior AI Engineer", "allocation": 25}], "dependencies": [], "notes": "Align team, refine plan."},
-        {"id": 2, "phase": "Phase 1", "subtask": "Benchmark Research", "effort_ph": 40, "assignments": [{"role": "AI Engineer", "allocation": 50}, {"role": "Senior AI Engineer", "allocation": 50}], "dependencies": [1], "notes": "Investigate SOTA models."},
-        {"id": 3, "phase": "Phase 1", "subtask": "Define Metrics & Setup", "effort_ph": 16, "assignments": [{"role": "Tech Lead", "allocation": 25}, {"role": "Senior AI Engineer", "allocation": 25}], "dependencies": [2], "notes": "Key evaluation metrics and environment setup."},
-        {"id": 4, "phase": "Phase 2", "subtask": "Fine-tune VLM", "effort_ph": 80, "assignments": [{"role": "AI Engineer", "allocation": 50}, {"role": "Senior AI Engineer", "allocation": 50}], "dependencies": [3], "notes": "Adapt selected Vision Language Model."},
-        {"id": 5, "phase": "Phase 3", "subtask": "Develop RAG Prototype", "effort_ph": 60, "assignments": [{"role": "Tech Lead", "allocation": 25},{"role": "AI Engineer", "allocation": 50}], "dependencies": [4], "notes": "Build local Retrieval Augmented Generation system."}
+        # Phase 0: Project Initiation
+        {"id": 1, "phase": "P0: Initiation", "subtask": "Project Kick-off & High-Level Planning", "effort_ph": 16,
+         "assignments": [{"role": "Project Manager", "allocation": 50}, {"role": "Lead Developer", "allocation": 25}],
+         "dependencies": [], "notes": "Define scope, objectives, key stakeholders. Initial timeline and resource overview."},
+        {"id": 2, "phase": "P0: Initiation", "subtask": "Detailed Requirements Gathering", "effort_ph": 24,
+         "assignments": [{"role": "Project Manager", "allocation": 50}, {"role": "UX Designer", "allocation": 50}, {"role": "Lead Developer", "allocation": 20}],
+         "dependencies": [1], "notes": "Workshops with stakeholders, document functional and non-functional requirements."},
+
+        # Phase 1: Design & Prototyping
+        {"id": 3, "phase": "P1: Design & Prototyping", "subtask": "UX Design & Wireframes", "effort_ph": 40,
+         "assignments": [{"role": "UX Designer", "allocation": 80}, {"role": "Lead Developer", "allocation": 20}],
+         "dependencies": [2], "notes": "Create user flows, wireframes, and mockups. Initial usability considerations."},
+        {"id": 4, "phase": "P1: Design & Prototyping", "subtask": "Technical Design Document", "effort_ph": 32,
+         "assignments": [{"role": "Lead Developer", "allocation": 70}, {"role": "Developer", "allocation": 30}],
+         "dependencies": [2], "notes": "Define system architecture, database schema, API contracts, technology stack."},
+        {"id": 5, "phase": "P1: Design & Prototyping", "subtask": "Interactive Prototype Development", "effort_ph": 48,
+         "assignments": [{"role": "Developer", "allocation": 75}, {"role": "UX Designer", "allocation": 25}],
+         "dependencies": [3, 4], "notes": "Build a clickable prototype for key user stories."},
+        {"id": 6, "phase": "P1: Design & Prototyping", "subtask": "Design & Prototype Review/Approval", "effort_ph": 8, # Lower effort for review
+         "assignments": [{"role": "Project Manager", "allocation": 50}, {"role": "Lead Developer", "allocation": 25}, {"role": "UX Designer", "allocation": 25}],
+         "dependencies": [5], "notes": "Internal and stakeholder review of designs and prototype. Sign-off."},
+
+        # Phase 2: Development
+        {"id": 7, "phase": "P2: Development", "subtask": "Backend Development - Module A", "effort_ph": 80,
+         "assignments": [{"role": "Developer", "allocation": 100}, {"role": "Lead Developer", "allocation": 20}], # Lead Dev supervises
+         "dependencies": [6], "notes": "Develop core logic for Module A."},
+        {"id": 8, "phase": "P2: Development", "subtask": "Frontend Development - UI Implementation", "effort_ph": 120,
+         "assignments": [{"role": "Developer", "allocation": 100}],
+         "dependencies": [6], "notes": "Implement UI based on approved designs."},
+        {"id": 9, "phase": "P2: Development", "subtask": "API Integration", "effort_ph": 40,
+         "assignments": [{"role": "Developer", "allocation": 70}, {"role": "Lead Developer", "allocation": 30}],
+         "dependencies": [7, 8], "notes": "Integrate frontend with backend APIs."},
+        {"id": 10, "phase": "P2: Development", "subtask": "Backend Development - Module B", "effort_ph": 60,
+         "assignments": [{"role": "Developer", "allocation": 100}, {"role": "Lead Developer", "allocation": 15}],
+         "dependencies": [6], "notes": "Develop core logic for Module B."},
+
+
+        # Phase 3: Testing & QA
+        {"id": 11, "phase": "P3: Testing & QA", "subtask": "Test Plan Creation", "effort_ph": 16,
+         "assignments": [{"role": "QA Engineer", "allocation": 100}],
+         "dependencies": [4], "notes": "Define test strategy, scope, and test cases."},
+        {"id": 12, "phase": "P3: Testing & QA", "subtask": "Unit & Integration Testing", "effort_ph": 60, # Developers do unit, QA oversees integration
+         "assignments": [{"role": "Developer", "allocation": 70}, {"role": "QA Engineer", "allocation": 30}],
+         "dependencies": [9, 10], "notes": "Verify individual components and their interactions."},
+        {"id": 13, "phase": "P3: Testing & QA", "subtask": "System & UAT Testing", "effort_ph": 80,
+         "assignments": [{"role": "QA Engineer", "allocation": 80}, {"role": "Project Manager", "allocation": 20}], # PM for UAT coordination
+         "dependencies": [12], "notes": "End-to-end system testing. User Acceptance Testing with stakeholders."},
+        {"id": 14, "phase": "P3: Testing & QA", "subtask": "Bug Fixing Cycle 1", "effort_ph": 40,
+         "assignments": [{"role": "Developer", "allocation": 100}, {"role": "Lead Developer", "allocation": 10}],
+         "dependencies": [13], "notes": "Address issues found during testing."},
+
+        # Phase 4: Deployment
+        {"id": 15, "phase": "P4: Deployment", "subtask": "Prepare Deployment Environment", "effort_ph": 24,
+         "assignments": [{"role": "Lead Developer", "allocation": 100}],
+         "dependencies": [13], "notes": "Configure servers, databases, and CI/CD pipelines."},
+        {"id": 16, "phase": "P4: Deployment", "subtask": "Deploy to Staging & Staging Tests", "effort_ph": 32,
+         "assignments": [{"role": "Lead Developer", "allocation": 50}, {"role": "QA Engineer", "allocation": 50}],
+         "dependencies": [14, 15], "notes": "Deploy application to staging. Perform sanity checks."},
+        {"id": 17, "phase": "P4: Deployment", "subtask": "Production Deployment", "effort_ph": 16,
+         "assignments": [{"role": "Lead Developer", "allocation": 100}],
+         "dependencies": [16], "notes": "Go-live!"},
+
+        # Phase 5: Project Closure
+        {"id": 18, "phase": "P5: Closure", "subtask": "Project Closure Report & Lessons Learned", "effort_ph": 0, # Milestone
+         "assignments": [{"role": "Project Manager", "allocation": 100}], # Even for milestones, assign for cost/record
+         "dependencies": [17], "notes": "Final documentation, stakeholder sign-off, lessons learned session."}
     ]
+
     tasks = []
     task_end_dates_map = {}
     processed_ids = set()
@@ -630,7 +694,7 @@ def get_ai_project_template_data() -> tuple[dict, list, int]:
     working_hours_cfg = st.session_state.config['working_hours']
     task_dict_template = {task['id']: task for task in tasks_structure}
     ids_to_process_template = sorted(list(task_dict_template.keys()))
-    max_iterations_template = len(ids_to_process_template) * 2 # Simple heuristic for loop break
+    max_iterations_template = len(ids_to_process_template) * 3 # Increased iterations for complex dependencies
     iterations_template = 0
     calculation_ok_template = True
 
@@ -647,33 +711,39 @@ def get_ai_project_template_data() -> tuple[dict, list, int]:
                 start_date_template = calculate_dependent_start_date_for_scheduling(
                     json.dumps(dependencies_template), task_end_dates_map, project_start_date, working_hours_cfg, exclude_weekends_cfg
                 )
-                if start_date_template is None: # Critical error in dependency calculation
+                if start_date_template is None:
                     calculation_ok_template = False; break
 
-                effort_ph_template = task_data_template.get('effort_ph', 1) # Default to 1 if not specified
+                effort_ph_template = task_data_template.get('effort_ph', 0.0) # Allow 0 for milestones
                 assignments_template = parse_assignments(task_data_template.get('assignments', []))
 
-                # Estimate duration based on effort (for initial display, leveling will refine)
                 duration_calc_days_template = calculate_estimated_duration_from_effort(
                     effort_ph_template, assignments_template, roles_cfg, working_hours_cfg, exclude_weekends_cfg
                 )
-                # Calculate end date based on effort (more accurate than fixed duration for templates)
+                if effort_ph_template == 0: # Milestone specific duration
+                    duration_calc_days_template = 0.5
+
+
                 end_date_template = calculate_end_date_from_effort(
                     start_date_template, effort_ph_template, assignments_template, roles_cfg, working_hours_cfg, exclude_weekends_cfg
                 )
-                if end_date_template is None: # Should not happen if start_date is valid
-                    end_date_template = start_date_template # Fallback
+                if effort_ph_template == 0: # Milestone end date is same as start
+                     end_date_template = start_date_template
+
+
+                if end_date_template is None:
+                    end_date_template = start_date_template
 
                 final_task_template = task_data_template.copy()
                 final_task_template['start_date'] = start_date_template
                 final_task_template['effort_ph'] = effort_ph_template
-                final_task_template['duration_calc_days'] = duration_calc_days_template # Store the effort-based duration
+                final_task_template['duration_calc_days'] = duration_calc_days_template
                 final_task_template['dependencies'] = json.dumps(dependencies_template)
                 final_task_template['status'] = 'Pending'
                 final_task_template['notes'] = task_data_template.get('notes', '')
-                final_task_template['parent_id'] = None # Assuming top-level tasks for template
-                final_task_template['assignments'] = assignments_template # Store parsed assignments
-                final_task_template['phase_color'] = st.session_state.phases.get(final_task_template.get('phase', ''), "#CCCCCC") # Use 'phase'
+                final_task_template['parent_id'] = None
+                final_task_template['assignments'] = assignments_template
+                final_task_template['phase_color'] = st.session_state.phases.get(final_task_template.get('phase', ''), "#CCCCCC")
                 final_task_template['name'] = f"{final_task_template.get('phase','No Phase')} - {final_task_template.get('subtask','No Subtask')}"
 
 
@@ -682,23 +752,31 @@ def get_ai_project_template_data() -> tuple[dict, list, int]:
                 processed_ids.add(task_id_template)
                 processed_in_iteration_template = True
 
-        if not calculation_ok_template: break # Exit if critical error
+        if not calculation_ok_template: break
         iterations_template += 1
         if not processed_in_iteration_template and len(processed_ids) < len(ids_to_process_template):
             logging.error("Template Load: Could not resolve dependencies for all tasks. Possible circular dependency or data issue.")
-            calculation_ok_template = False; break # Stop if stuck
+            calculation_ok_template = False; break
 
     if not calculation_ok_template:
         st.error("Error calculating template dates. Data was not loaded. Check logs for details.")
-        return {}, [], 1 # Return empty data
+        return {}, [], 1
 
     next_id_template = max(task_dict_template.keys()) + 1 if task_dict_template else 1
 
-    # Add phases from template to global phases if they don't exist
+    # Default phase colors for the new template
+    default_phase_colors = {
+        "P0: Initiation": "#4A90E2", # Blue
+        "P1: Design & Prototyping": "#50E3C2", # Teal
+        "P2: Development": "#F5A623", # Orange
+        "P3: Testing & QA": "#D0021B", # Red
+        "P4: Deployment": "#BD10E0", # Purple
+        "P5: Closure": "#7ED321" # Green
+    }
     for task_template_item in tasks_structure:
          phase_name_template = task_template_item.get('phase')
          if phase_name_template and phase_name_template not in st.session_state.phases:
-             st.session_state.phases[phase_name_template] = "#ADD8E6" # Default color for new phases
+             st.session_state.phases[phase_name_template] = default_phase_colors.get(phase_name_template, "#ADD8E6")
 
     return roles_cfg, tasks, next_id_template
 
@@ -1215,21 +1293,21 @@ with tab_config:
                 del st.session_state.confirm_new_project # Clear confirmation flag
                 st.rerun()
     with col_load_template:
-        if st.button("📋 Load AI Project Template", help="Loads a sample AI project template, replacing current data."):
+        if st.button("📋 Load Project Template", help="Loads a sample project template with more features, replacing current data."): # Updated button text
             if 'confirm_load_template' not in st.session_state or not st.session_state.confirm_load_template: # Unique key
                 st.session_state.confirm_load_template = True
-                st.warning("Are you sure? Current project data will be replaced with the template. Press the button again to confirm.")
+                st.warning("Are you sure? Current project data will be replaced with the enhanced template. Press the button again to confirm.")
             else:
-                template_roles, template_tasks, template_next_id = get_ai_project_template_data()
+                template_roles, template_tasks, template_next_id = get_ai_project_template_data() # This now loads the enhanced template
                 if template_tasks: # Check if template data was successfully generated
                     st.session_state.roles = template_roles
                     st.session_state.tasks = template_tasks
                     st.session_state.next_task_id = template_next_id
                     # Phases are added within get_ai_project_template_data if not existing
                     st.session_state.leveled_resource_schedule = {} # Reset schedule
-                    st.success("AI Project Template loaded successfully.")
+                    st.success("Enhanced Project Template loaded successfully.")
                 else:
-                    st.error("Failed to load AI project template. Please check logs.")
+                    st.error("Failed to load project template. Please check logs.")
                 del st.session_state.confirm_load_template # Clear confirmation flag
                 st.rerun()
     st.divider()
@@ -1462,10 +1540,10 @@ with tab_config:
         else:
             # Create a deep copy of tasks for replanning to avoid modifying session state directly during calculation
             tasks_copy_for_replan = [task.copy() for task in st.session_state.tasks]
-            logging.info("--- Starting Effort-Based Resource Leveling Replan (User Triggered) ---")
+            logging.info("--- Starting Resource Leveling Replan (User Triggered) ---")
             replan_with_resource_leveling(tasks_copy_for_replan, st.session_state.roles, st.session_state.config)
             # replan_with_resource_leveling modifies st.session_state.tasks internally if successful
-            logging.info("--- Effort-Based Resource Leveling Replan Finished (User Triggered) ---")
+            logging.info("--- Resource Leveling Replan Finished (User Triggered) ---")
             st.rerun() # Rerun to show updated dates and statuses
     st.divider()
 
@@ -1719,8 +1797,8 @@ with tab_tasks:
                 st.caption(f"Full task name will be: {task_name_preview_new_task}")
 
             task_effort_ph_input_new = st.number_input(
-                "Effort (Person-Hours) (*)", min_value=0.1, step=0.5, value=8.0, format="%.1f",
-                key="new_task_effort_ph_input", help="Total estimated person-hours required to complete this task."
+                "Effort (Person-Hours) (*)", min_value=0.0, step=0.5, value=8.0, format="%.1f", # Allow 0 for milestones
+                key="new_task_effort_ph_input", help="Total estimated person-hours required to complete this task. Enter 0 for milestones."
             )
 
             # Start Date: Manual input, but dependencies can override it.
@@ -1747,7 +1825,7 @@ with tab_tasks:
             task_notes_new = st.text_area("Additional Notes", key="new_task_notes_area")
 
             st.markdown("--- \n ### Role Assignments for this Task")
-            st.caption("Specify the percentage of each role's **available time** that should be allocated **specifically to this task** while it's active.")
+            st.caption("Specify the percentage of each role's **available time** that should be allocated **specifically to this task** while it's active. For milestones (0 PH effort), assignments can still be made for record-keeping or if they have a nominal cost/presence, but allocation % might be less critical for duration.")
             assignment_data_for_new_task = {}
             if st.session_state.roles:
                 cols_assign_new_task = st.columns(len(st.session_state.roles))
@@ -1765,8 +1843,10 @@ with tab_tasks:
                 final_selected_phase_name = selected_phase_new_task.strip() if selected_phase_new_task else ""
                 final_subtask_name = subtask_name_new_task.strip() if subtask_name_new_task else ""
 
-                if not final_selected_phase_name or not final_subtask_name or task_effort_ph_input_new <= 0:
-                    st.error("Please complete all required fields (*): Phase, Subtask Name, and Effort (must be > 0).")
+                if not final_selected_phase_name or not final_subtask_name: # Effort can be 0 for milestones
+                    st.error("Please complete all required fields (*): Phase and Subtask Name.")
+                elif task_effort_ph_input_new < 0:
+                     st.error("Effort (PH) cannot be negative.")
                 else:
                     # If a new phase was entered in text input and not yet in session_state.phases, add it.
                     if final_selected_phase_name not in st.session_state.phases and not st.session_state.phases: # Only if no phases exist at all
@@ -1797,7 +1877,7 @@ with tab_tasks:
                     st.session_state.last_phase = final_selected_phase_name # Remember last used phase
 
                     new_assignments_parsed = [{'role': r_name, 'allocation': alloc_val}
-                                           for r_name, alloc_val in assignment_data_for_new_task.items() if alloc_val > 0]
+                                           for r_name, alloc_val in assignment_data_for_new_task.items() if alloc_val >= 0] # Allow 0% allocation if role is listed
 
                     # Estimate duration based on effort for initial display
                     duration_calc_days_for_new_task = calculate_estimated_duration_from_effort(
@@ -1805,9 +1885,9 @@ with tab_tasks:
                         st.session_state.roles, st.session_state.config['working_hours'],
                         st.session_state.config['exclude_weekends']
                     )
-                    # The actual end_date will be determined by resource leveling.
-                    # For now, we can estimate it for non-leveled display or if leveling isn't run.
-                    # However, the 'replan' button is the primary way to get accurate end dates.
+                    if task_effort_ph_input_new == 0: # Milestone specific duration
+                        duration_calc_days_for_new_task = 0.5
+
 
                     final_phase_color_for_new_task = st.session_state.phases.get(final_selected_phase_name, phase_color_for_new_task_form)
 
@@ -1829,18 +1909,19 @@ with tab_tasks:
                         'end_date': None # End date will be set by leveling or a simple calculation if not leveled
                     }
                     # Add a simple end_date calculation for immediate display if not leveling
-                    if new_task_entry_dict['start_date'] and new_task_entry_dict['effort_ph'] > 0:
-                         new_task_entry_dict['end_date'] = calculate_end_date_from_effort(
-                             new_task_entry_dict['start_date'], new_task_entry_dict['effort_ph'],
-                             new_task_entry_dict['assignments'], st.session_state.roles,
-                             st.session_state.config['working_hours'], st.session_state.config['exclude_weekends']
-                         )
-                    elif new_task_entry_dict['start_date']: # Milestone like
-                         new_task_entry_dict['end_date'] = new_task_entry_dict['start_date']
+                    if new_task_entry_dict['start_date']:
+                        if new_task_entry_dict['effort_ph'] > 0 :
+                             new_task_entry_dict['end_date'] = calculate_end_date_from_effort(
+                                 new_task_entry_dict['start_date'], new_task_entry_dict['effort_ph'],
+                                 new_task_entry_dict['assignments'], st.session_state.roles,
+                                 st.session_state.config['working_hours'], st.session_state.config['exclude_weekends']
+                             )
+                        else: # Milestone like (0 effort)
+                             new_task_entry_dict['end_date'] = new_task_entry_dict['start_date']
 
 
                     st.session_state.tasks.append(new_task_entry_dict)
-                    st.success(f"Task '{new_task_entry_dict['name']}' added. Estimated duration: {duration_calc_days_for_new_task} days. Replan for accurate schedule.")
+                    st.success(f"Task '{new_task_entry_dict['name']}' added. Est. duration: {duration_calc_days_for_new_task} days. Replan for accurate schedule.")
                     st.rerun()
     st.divider()
 
@@ -1864,7 +1945,7 @@ with tab_tasks:
             "phase_color": None, # Not directly editable here, managed by phase definition
             "name": st.column_config.TextColumn("Full Name", disabled=True, width="large", help="Auto-generated from Phase and Subtask."),
             "start_date": st.column_config.DateColumn("Start Date", required=True, format="YYYY-MM-DD", help="Task start date. Can be affected by dependencies and replanning."),
-            "effort_ph": st.column_config.NumberColumn("Effort (PH)", required=True, min_value=0.1, format="%.1f PH", help="Estimated person-hours for the task."),
+            "effort_ph": st.column_config.NumberColumn("Effort (PH)", required=True, min_value=0.0, format="%.1f PH", help="Estimated person-hours for the task. 0 for milestones."), # Allow 0 for milestones
             "duration_calc_days": st.column_config.NumberColumn("Est. Dur. (Days)", disabled=True, format="%.1f d", help="Estimated duration based on effort and assignments. Recalculated."),
             "dependencies": st.column_config.TextColumn("Deps (IDs JSON)", help="JSON list of prerequisite task IDs, e.g., [1, 2]."),
             "dependencies_display": st.column_config.TextColumn("Deps (Names)", disabled=True, help="Readable list of dependencies."),
@@ -1948,9 +2029,11 @@ with tab_tasks:
                                         if pd.notna(edited_row.get('start_date')) \
                                         else (original_task_data_for_row.get('start_date') or datetime.date.today())
 
-                    edited_effort_ph = max(0.1, float(edited_row['effort_ph'])) \
-                                       if pd.notna(edited_row.get('effort_ph')) \
-                                       else (original_task_data_for_row.get('effort_ph') or 0.1)
+                    edited_effort_ph = float(edited_row['effort_ph']) \
+                                       if pd.notna(edited_row.get('effort_ph')) and float(edited_row['effort_ph']) >=0 \
+                                       else (original_task_data_for_row.get('effort_ph') or 0.0) # Allow 0, default to 0
+                    if edited_effort_ph > 0 and edited_effort_ph < 0.1: edited_effort_ph = 0.1 # Min effort if not milestone
+
 
                     edited_status = str(edited_row.get('status', original_task_data_for_row.get('status', 'Pending')))
                     edited_notes = str(edited_row.get('notes', original_task_data_for_row.get('notes', '')))
@@ -1961,12 +2044,19 @@ with tab_tasks:
                         st.session_state.roles, st.session_state.config['working_hours'],
                         st.session_state.config['exclude_weekends']
                     )
+                    if edited_effort_ph == 0: recalculated_duration_days = 0.5 # Milestone duration
+
                     # Recalculate end_date based on potentially changed start_date or effort
-                    recalculated_end_date = calculate_end_date_from_effort(
-                        edited_start_date, edited_effort_ph, current_assignments_for_row,
-                        st.session_state.roles, st.session_state.config['working_hours'],
-                        st.session_state.config['exclude_weekends']
-                    ) if edited_start_date and edited_effort_ph > 0 else (edited_start_date if edited_start_date else None)
+                    recalculated_end_date = None
+                    if edited_start_date:
+                        if edited_effort_ph > 0:
+                            recalculated_end_date = calculate_end_date_from_effort(
+                                edited_start_date, edited_effort_ph, current_assignments_for_row,
+                                st.session_state.roles, st.session_state.config['working_hours'],
+                                st.session_state.config['exclude_weekends']
+                            )
+                        else: # Milestone
+                            recalculated_end_date = edited_start_date
 
 
                     task_data_entry_from_editor = {
@@ -2087,7 +2177,7 @@ with tab_tasks:
 
                     if st.form_submit_button("💾 Save Assignments for this Task"):
                         updated_assignments_list_for_task = [{'role': r_name, 'allocation': alloc_val}
-                                                             for r_name, alloc_val in new_assignment_data_from_form.items() if alloc_val > 0]
+                                                             for r_name, alloc_val in new_assignment_data_from_form.items() if alloc_val >= 0] # Allow 0%
                         assignments_changed_flag = False
                         for i_task_loop, task_loop_item in enumerate(st.session_state.tasks):
                             if task_loop_item['id'] == selected_task_id_for_assignment:
@@ -2102,15 +2192,22 @@ with tab_tasks:
                                         st.session_state.config['working_hours'],
                                         st.session_state.config['exclude_weekends']
                                     )
-                                    if st.session_state.tasks[i_task_loop]['start_date'] and st.session_state.tasks[i_task_loop]['effort_ph'] > 0:
-                                        st.session_state.tasks[i_task_loop]['end_date'] = calculate_end_date_from_effort(
-                                            st.session_state.tasks[i_task_loop]['start_date'],
-                                            st.session_state.tasks[i_task_loop]['effort_ph'],
-                                            updated_assignments_list_for_task,
-                                            st.session_state.roles,
-                                            st.session_state.config['working_hours'],
-                                            st.session_state.config['exclude_weekends']
-                                        )
+                                    if st.session_state.tasks[i_task_loop]['effort_ph'] == 0: # Milestone
+                                        st.session_state.tasks[i_task_loop]['duration_calc_days'] = 0.5
+
+
+                                    if st.session_state.tasks[i_task_loop]['start_date']:
+                                        if st.session_state.tasks[i_task_loop]['effort_ph'] > 0:
+                                            st.session_state.tasks[i_task_loop]['end_date'] = calculate_end_date_from_effort(
+                                                st.session_state.tasks[i_task_loop]['start_date'],
+                                                st.session_state.tasks[i_task_loop]['effort_ph'],
+                                                updated_assignments_list_for_task,
+                                                st.session_state.roles,
+                                                st.session_state.config['working_hours'],
+                                                st.session_state.config['exclude_weekends']
+                                            )
+                                        else: # Milestone
+                                            st.session_state.tasks[i_task_loop]['end_date'] = st.session_state.tasks[i_task_loop]['start_date']
                                     assignments_changed_flag = True
                                 break # Found and updated the task
 
@@ -2124,7 +2221,7 @@ with tab_tasks:
 
 # --- Gantt Tab ---
 with tab_gantt:
-    st.header("📊 Interactive Gantt Chart (Based on Current Plan)")
+    st.header("📊 Interactive Gantt Chart")
     st.caption("This Gantt chart visualizes tasks based on their current start and end dates. For resource-leveled dates, ensure you've used 'Replan with Resource Leveling'.")
 
     if not tasks_df_for_display.empty and \
@@ -2285,7 +2382,7 @@ with tab_deps:
 
 # --- Resources Tab ---
 with tab_resources:
-    st.header("👥 Resource Workload (Based on Leveled Plan)")
+    st.header("👥 Resource Workload")
     st.caption("This tab shows daily workload per role based on the last 'Replan with Resource Leveling' calculation. If no leveled data is available, it attempts an approximation.")
 
     # Use the prepared tasks_df_for_display for date ranges, but leveled_resource_schedule for actual load data
@@ -2306,7 +2403,7 @@ with tab_resources:
             workload_data_for_chart = []
 
             if leveled_schedule_data_res:
-                st.info("Displaying workload from the last resource leveling calculation (found in session state).")
+                st.info("Displaying workload from the last resource leveling calculation.")
                 for date_val_dt_obj, roles_load_on_date in leveled_schedule_data_res.items():
                     # Ensure date_val_dt_obj is a datetime.date object
                     current_date_for_load_chart = None
@@ -2457,7 +2554,7 @@ with tab_resources:
 
 # --- Costs Tab ---
 with tab_costs:
-    st.header("💰 Estimated Costs Summary (Based on Total Effort PH)")
+    st.header("💰 Estimated Costs Summary")
     # Use the centrally prepared tasks_df_for_display
     if not tasks_df_for_display.empty and 'cost' in tasks_df_for_display.columns and tasks_df_for_display['cost'].notna().any():
         total_gross_cost_calculated = tasks_df_for_display['cost'].sum()
@@ -2495,7 +2592,7 @@ with tab_costs:
                 st.error("Insufficient data to generate the cost model. Requires tasks, roles, phases, and project configuration.")
 
         st.divider()
-        st.subheader("Cost Breakdown by Role (Based on Total Effort PH Distribution)")
+        st.subheader("Cost Breakdown by Role")
         cost_by_role_data_list = []
         for _, task_cost_row_item in tasks_df_for_display.iterrows():
             effort_ph_for_cost_calc = task_cost_row_item.get('effort_ph', 0.0)
@@ -2544,7 +2641,7 @@ with tab_costs:
             st.info("Could not calculate cost breakdown by role. Ensure tasks have effort, assignments, and roles have defined hourly rates.")
 
         st.divider()
-        st.subheader("Cost Breakdown by Task (Based on Total Effort PH)")
+        st.subheader("Cost Breakdown by Task")
         cost_by_task_display_df = tasks_df_for_display[['id', 'phase', 'subtask', 'cost']].copy()
         cost_by_task_display_df.rename(columns={'cost': 'Estimated Cost (€)', 'phase': 'Phase', 'subtask':'Subtask'}, inplace=True)
 
